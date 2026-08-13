@@ -1,6 +1,6 @@
 # Direct3D 9 Renderer and Keyboard Menu
 
-A compact C++17 2D renderer and keyboard-driven settings menu for legacy Direct3D 9 applications. The project was originally created in **2021** and has since been cleaned up, documented, and packaged for reuse.
+A compact C++17 2D renderer and keyboard-driven settings menu designed for Direct3D 9 overlays. It can be integrated into an existing DirectX overlay render loop to draw primitives, text, and configurable UI controls. The project was originally created in **2021** and has since been cleaned up, documented, and packaged for reuse.
 
 ## Features
 
@@ -40,7 +40,34 @@ cmake -S . -B build -A x64
 cmake --build build --config Release
 ```
 
-This produces the `d3d9_renderer` static library. Applications using CMake can also include the repository with `add_subdirectory` and link against `Direct3D9Renderer::Renderer`.
+This produces the `d3d9_renderer` static library and the `direct3d9_overlay_example` application. Applications using CMake can also include the repository with `add_subdirectory` and link against `Direct3D9Renderer::Renderer`.
+
+To build only the library:
+
+```powershell
+cmake -S . -B build -DD3D9_RENDERER_BUILD_EXAMPLES=OFF
+```
+
+## Complete overlay example
+
+[`examples/overlay/main.cpp`](examples/overlay/main.cpp) is a complete external Direct3D 9 overlay implementation. It demonstrates:
+
+- Creating a transparent, borderless, click-through Win32 window
+- Attaching the overlay to any target window by title
+- Initializing and resetting a Direct3D 9 device
+- Handling target movement, resizing, minimization, focus changes, and closure
+- Rendering a polished status panel, center marker, corner guides, and keyboard menu
+- Releasing all Win32, Direct3D, D3DX, and renderer resources
+
+Run it with the exact title of a windowed or borderless-windowed target:
+
+```powershell
+.\build\Release\direct3d9_overlay_example.exe "Target Window Title"
+```
+
+The example hides itself when the target is not in the foreground. It uses black as a transparency color key, so pure black pixels are transparent. As with most external desktop overlays, it is not intended for exclusive fullscreen applications.
+
+The example is intentionally generic: it contains no application-specific inspection, process access, or target-specific behavior.
 
 ## Renderer example
 
@@ -158,9 +185,10 @@ if (font != nullptr)
 .
 ├── CMakeLists.txt  # Windows library build
 ├── Renderer.h/.cpp # Direct3D 9 rendering API and implementation
-├── Menu.h/.cpp     # Keyboard menu API and implementation
-├── README.md       # Setup, usage, controls, and lifecycle documentation
-└── LICENSE         # MIT License
+├── Menu.h/.cpp              # Keyboard menu API and implementation
+├── examples/overlay/main.cpp # Complete click-through overlay example
+├── README.md                # Setup, usage, controls, and lifecycle documentation
+└── LICENSE                  # MIT License
 ```
 
 ## License

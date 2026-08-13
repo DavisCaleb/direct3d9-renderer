@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 project(
     Direct3D9Renderer
     VERSION 1.0.0
-    DESCRIPTION "A Direct3D 9 renderer with a keyboard-driven menu"
+    DESCRIPTION "A Direct3D 9 overlay renderer with a keyboard-driven menu"
     LANGUAGES CXX)
 
 if(NOT WIN32)
@@ -52,4 +52,19 @@ if(MSVC)
     target_compile_options(d3d9_renderer PRIVATE /W4 /permissive-)
 else()
     target_compile_options(d3d9_renderer PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+option(D3D9_RENDERER_BUILD_EXAMPLES "Build the Direct3D 9 overlay example" ON)
+
+if(D3D9_RENDERER_BUILD_EXAMPLES)
+    add_executable(direct3d9_overlay_example WIN32 examples/overlay/main.cpp)
+    target_link_libraries(
+        direct3d9_overlay_example
+        PRIVATE Direct3D9Renderer::Renderer shell32)
+
+    if(MSVC)
+        target_compile_options(direct3d9_overlay_example PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(direct3d9_overlay_example PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
 endif()
