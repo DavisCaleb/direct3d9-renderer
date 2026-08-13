@@ -3,14 +3,14 @@ cmake_minimum_required(VERSION 3.20)
 project(
     Direct3D9Renderer
     VERSION 1.0.0
-    DESCRIPTION "A lightweight immediate-mode 2D renderer for Direct3D 9"
+    DESCRIPTION "A Direct3D 9 renderer with a keyboard-driven menu"
     LANGUAGES CXX)
 
 if(NOT WIN32)
     message(FATAL_ERROR "Direct3D9Renderer requires a Windows toolchain")
 endif()
 
-add_library(d3d9_renderer STATIC Renderer.cpp Renderer.h)
+add_library(d3d9_renderer STATIC Renderer.cpp Renderer.h Menu.cpp Menu.h)
 add_library(Direct3D9Renderer::Renderer ALIAS d3d9_renderer)
 
 target_compile_features(d3d9_renderer PUBLIC cxx_std_17)
@@ -46,7 +46,7 @@ if(NOT D3DX9_INCLUDE_DIR OR NOT D3DX9_LIBRARY)
 endif()
 
 target_include_directories(d3d9_renderer SYSTEM PUBLIC "${D3DX9_INCLUDE_DIR}")
-target_link_libraries(d3d9_renderer PUBLIC d3d9 "${D3DX9_LIBRARY}")
+target_link_libraries(d3d9_renderer PUBLIC d3d9 user32 "${D3DX9_LIBRARY}")
 
 if(MSVC)
     target_compile_options(d3d9_renderer PRIVATE /W4 /permissive-)

@@ -1,15 +1,27 @@
-# Direct3D 9 Renderer
+# Direct3D 9 Renderer and Keyboard Menu
 
-A compact C++17 immediate-mode 2D rendering helper for legacy Direct3D 9 applications. It wraps common overlay and UI drawing operations while keeping device and resource ownership explicit.
+A compact C++17 2D renderer and keyboard-driven settings menu for legacy Direct3D 9 applications. The project was originally created in **2021** and has since been cleaned up, documented, and packaged for reuse.
 
 ## Features
 
+### Renderer
+
 - Antialiased lines and outlined rectangles
 - Solid and two-color gradient rectangles
-- ANSI text drawing and text measurement with `ID3DXFont`
-- Scoped scissor rectangle support that restores the previous device state
+- Text drawing and measurement with `ID3DXFont`
+- Scissor clipping that restores the previous device state
 - Direct3D device-loss and reset handling
-- Small, dependency-light API with `Point` and `Color` value types
+- Explicit COM ownership and a small `Point`/`Color` API
+
+### Keyboard menu
+
+- Toggles
+- Integer and floating-point sliders
+- Key bindings with direct key capture
+- Multi-select options
+- RGB color editing
+- Labels, spacers, selection highlighting, and an optional transparent layout
+- Edge-triggered Win32 input, so actions occur once per key press
 
 ## Requirements
 
@@ -28,9 +40,9 @@ cmake -S . -B build -A x64
 cmake --build build --config Release
 ```
 
-This produces the `d3d9_renderer` static library. Consumers can also add this repository with `add_subdirectory` and link against `d3d9_renderer`.
+This produces the `d3d9_renderer` static library. Applications using CMake can also include the repository with `add_subdirectory` and link against `Direct3D9Renderer::Renderer`.
 
-## Example
+## Renderer example
 
 Drawing must happen between the application's `BeginScene` and `EndScene` calls.
 
@@ -39,35 +51,79 @@ Drawing must happen between the application's `BeginScene` and `EndScene` calls.
 
 // `device` is an initialized IDirect3DDevice9 pointer.
 Renderer renderer(device);
-
 ID3DXFont* font = renderer.CreateFont(L"Segoe UI", 18, true, true);
 
 renderer.RenderFilledRect({20, 20}, {280, 120}, Color{24, 28, 36, 230});
-renderer.RenderGradient({20, 120}, {280, 126}, Color{64, 150, 255}, Color{126, 87, 255}, true);
+renderer.RenderGradient(
+    {20, 120},
+    {280, 126},
+    Color{64, 150, 255},
+    Color{126, 87, 255},
+    true);
 renderer.RenderRect({20, 20}, {280, 126}, Color{220, 225, 235}, 1, true);
-renderer.RenderText("Direct3D 9 Renderer", font, {32, 34}, {}, Color{255, 255, 255});
+renderer.RenderText(
+    "Direct3D 9 Renderer",
+    font,
+    Point{32, 34},
+    Point{},
+    Color{255, 255, 255});
+```
 
-if (font != nullptr)
+## Menu example
+
+The menu stores non-owning references to application settings, so those settings must outlive the menu.
+
+```cpp
+#include "Menu.h"
+
+bool enabled = true;
+bool bloom = true;
+bool colorCorrection = false;
+int quality = 3;
+int activationKey = VK_F1;
+float opacity = 0.85F;
+Color accent{135, 145, 255};
+
+Menu menu("Renderer Settings");
+menu.AddLabel("Display");
+menu.AddToggle("Enabled", enabled);
+menu.AddIntSlider("Quality", quality, 1, 5);
+menu.AddFloatSlider("Opacity", opacity, 0.0F, 1.0F, 0.05F);
+menu.AddMultiSelect(
+    "Effects",
+    {{"Bloom", bloom}, {"Color correction", colorCorrection}});
+menu.AddColorPicker("Accent", accent);
+menu.AddKeybind("Activation key", activationKey);
+```
+
+Update input once per frame, then render during the active scene:
+
+```cpp
+menu.UpdateInput();
+
+if (SUCCEEDED(device->BeginScene()))
 {
-    font->Release();
+    menu.Render(renderer, font, {30, 30});
+    device->EndScene();
 }
 ```
 
-For centered text, provide both corners of a non-empty rectangle:
+### Controls
 
-```cpp
-renderer.RenderText(
-    "Centered",
-    font,
-    Point{20, 20},
-    Point{280, 120},
-    Color{255, 255, 255},
-    true);
-```
+| Key | Action |
+| --- | --- |
+| `Insert` | Show or hide the menu |
+| `Up` / `Down` | Change the selected item |
+| `Left` / `Right` | Adjust a value or choose an option/channel |
+| `Enter` | Toggle, activate key capture, or enter/leave color editing |
+| `Escape` | Cancel key capture or leave color editing |
+| `Backspace` / `Delete` | Clear the selected key binding |
+
+While editing a color, use `Left`/`Right` to select the RGB channel and `Up`/`Down` to change its value.
 
 ## Device lifecycle
 
-Call the renderer hooks around a Direct3D device reset. Fonts are created for the caller, so the caller remains responsible for forwarding the same notifications to each font.
+Call the renderer hooks around a Direct3D device reset. Fonts are caller-owned and require the same lifecycle notifications.
 
 ```cpp
 const HRESULT rendererLost = renderer.OnLostDevice();
@@ -79,24 +135,32 @@ const HRESULT fontReset = font->OnResetDevice();
 const HRESULT rendererReset = renderer.OnResetDevice();
 ```
 
-Check the returned `HRESULT` values in production code. The renderer retains the device through COM reference counting and releases it when destroyed. A font returned by `CreateFont` is caller-owned and must be released.
+Check the returned `HRESULT` values in production code. The renderer retains the device through COM reference counting and releases it when destroyed. A font returned by `CreateFont` must be released by its caller.
+
+```cpp
+if (font != nullptr)
+{
+    font->Release();
+}
+```
 
 ## Design notes
 
-- This library does not call `BeginScene`, `EndScene`, or `Present`; frame ownership stays with the host application.
+- The library does not call `BeginScene`, `EndScene`, or `Present`; frame ownership remains with the host application.
 - Filled and gradient draws temporarily change the fixed-function vertex format and restore it afterward.
 - Blending, sampler configuration, and other pipeline state remain under host-application control.
-- `EnableScissorRect` saves the current scissor rectangle and enabled state. `DisableScissorRect` restores both.
-- The renderer is intentionally not thread-safe, matching typical Direct3D 9 rendering usage.
+- The menu uses `GetAsyncKeyState` and is intended for a standard single-threaded Windows render loop.
+- The renderer and menu are not thread-safe.
 
 ## Repository layout
 
 ```text
 .
-├── CMakeLists.txt  # Portable project configuration for supported Windows toolchains
-├── Renderer.cpp    # Rendering implementation
-├── Renderer.h      # Public API and API documentation
-└── README.md       # Setup, usage, and lifecycle documentation
+├── CMakeLists.txt  # Windows library build
+├── Renderer.h/.cpp # Direct3D 9 rendering API and implementation
+├── Menu.h/.cpp     # Keyboard menu API and implementation
+├── README.md       # Setup, usage, controls, and lifecycle documentation
+└── LICENSE         # MIT License
 ```
 
 ## License

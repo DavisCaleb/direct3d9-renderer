@@ -275,15 +275,14 @@ void Renderer::DisableScissorRect()
         return;
     }
 
-    if (hasSavedScissorState_)
+    if (!hasSavedScissorState_)
     {
-        device_->SetScissorRect(&previousScissorRect_);
-        device_->SetRenderState(D3DRS_SCISSORTESTENABLE, previousScissorEnabled_);
-        hasSavedScissorState_ = false;
         return;
     }
 
-    device_->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+    device_->SetScissorRect(&previousScissorRect_);
+    device_->SetRenderState(D3DRS_SCISSORTESTENABLE, previousScissorEnabled_);
+    hasSavedScissorState_ = false;
 }
 
 void Renderer::RenderLine(Point from, Point to, Color color, int width, bool antialias)
